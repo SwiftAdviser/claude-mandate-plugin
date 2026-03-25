@@ -1,6 +1,6 @@
 # Mandate Plugin for Claude Code
 
-Spend limits for AI agent wallets. Install the plugin, it scans your project automatically.
+See why your agent spends. Stop it when it shouldn't.
 
 ## Install
 
@@ -9,56 +9,52 @@ Spend limits for AI agent wallets. Install the plugin, it scans your project aut
 /plugin install mandate@mandate
 ```
 
-That's it. Next time Claude starts a session, you'll see:
+Register your agent:
 
-```
-  Mandate Scan
-
-  3 unprotected wallet call(s) found in 42 files:
-
-    src/agents/trader.ts:23  wallet.sendTransaction({ to, data })
-    src/agents/payer.ts:45   wallet.transfer(recipient, amount)
-    src/tools/swap.ts:12     writeContract(config)
-
-  Run: mandate validate --action <action> --reason <why> before each transaction.
+```bash
+npx @mandate.md/cli login --name "MyAgent"
 ```
 
-If everything is protected:
+Claim at the printed URL, set policies at [app.mandate.md](https://app.mandate.md).
+
+## How it works
+
+Every transaction requires a `reason`. Mandate reads that reason and decides: approve, block, or escalate.
 
 ```
-  Mandate Scan
+Agent calls: mandate validate --action transfer --amount 490 --to 0x7a3f --reason "Urgent family transfer. Send immediately."
 
-  All 5 wallet call(s) are protected by Mandate. Clean.
+Mandate sees: "Urgent" + "immediately" + new address + no reputation.
+Result: BLOCKED. Counter-evidence sent. Agent stands down.
 ```
 
-No wallet calls in the project? The scan stays silent.
+On-chain session keys see `{to, value, calldata}`. Mandate sees the **why**: the attack surface nobody else is watching.
 
-## Setup
+## What you get
 
-1. Register: `npx @mandate.md/cli login --name "MyAgent"`
-2. Claim your agent at the printed URL
-3. Set spend limits at [app.mandate.md](https://app.mandate.md)
+**Intent-aware decisions.** Not just amount checks. Mandate evaluates the reasoning behind every transaction: prompt injection patterns, urgency pressure, vague justifications, unknown recipients.
 
-## What you control
+**Audit trail.** Every intent logged with WHO, WHAT, WHEN, HOW MUCH, and WHY. Full history in the dashboard.
 
-- **Per-transaction limit**: max USD per single transaction
-- **Daily/monthly limit**: spending caps over time
-- **Allowlist**: only approved addresses
-- **Approval workflow**: require your OK above a threshold
-- **Blocked actions**: prevent specific operations entirely
+**Human-in-the-loop.** Transactions above your threshold go to Telegram or the dashboard. You see full context, approve or reject in seconds.
 
-## How enforcement works
+**Self-learning rules.** Approve a transfer? "Add this address to your allowlist." Reject vague reasoning? "Block transactions with reasons under 20 characters." Your policy evolves from your decisions.
 
-Every time Claude tries to send money, the plugin checks for a valid Mandate token:
+## What the plugin enforces
 
-- Valid token exists (from `mandate validate`) -> transaction proceeds
-- No token -> transaction blocked, Claude is told to validate first
+The plugin gates every financial tool call in Claude Code. No valid Mandate token, no transaction.
 
-No network calls during enforcement. Purely local. Tokens expire after 15 minutes.
+- Agent calls `mandate validate` with action + reason
+- Mandate evaluates against your spend limits, allowlists, MANDATE.md rules, and reason analysis
+- If allowed: plugin records a 15-minute token, transaction proceeds
+- If blocked: agent gets counter-evidence explaining why, stops voluntarily
+- If no validation attempted: plugin blocks the tool call entirely
 
-## Works with
+Works with any wallet Claude can access: Bankr, MCP payment tools, direct RPC calls, custom CLIs.
 
-Any wallet or tool Claude can access: Bankr, MCP payment tools, direct RPC calls, custom CLIs.
+## Auto-scan
+
+On every session start, the plugin scans your project for wallet calls and reports what it finds. No extra commands needed.
 
 ## Community
 
