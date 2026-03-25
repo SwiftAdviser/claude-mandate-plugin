@@ -1,6 +1,6 @@
 # Mandate Plugin for Claude Code
 
-Spend limits for AI agent wallets. Your agent validates every transaction before executing it.
+Spend limits for AI agent wallets. Install the plugin, it scans your project automatically.
 
 ## Install
 
@@ -9,35 +9,37 @@ Spend limits for AI agent wallets. Your agent validates every transaction before
 /plugin install mandate@mandate
 ```
 
+That's it. Next time Claude starts a session, you'll see:
+
+```
+  Mandate Scan
+
+  3 unprotected wallet call(s) found in 42 files:
+
+    src/agents/trader.ts:23  wallet.sendTransaction({ to, data })
+    src/agents/payer.ts:45   wallet.transfer(recipient, amount)
+    src/tools/swap.ts:12     writeContract(config)
+
+  Run: mandate validate --action <action> --reason <why> before each transaction.
+```
+
+If everything is protected:
+
+```
+  Mandate Scan
+
+  All 5 wallet call(s) are protected by Mandate. Clean.
+```
+
+No wallet calls in the project? The scan stays silent.
+
 ## Setup
 
 1. Register: `npx @mandate.md/cli login --name "MyAgent"`
 2. Claim your agent at the printed URL
 3. Set spend limits at [app.mandate.md](https://app.mandate.md)
 
-## What happens
-
-Every time Claude tries to send money, the plugin checks with Mandate first:
-
-```
-Claude: "Sending 50 USDC to 0xAlice for Invoice #42"
-Mandate: allowed (within $100/tx limit)
-Claude: [executes transaction]
-```
-
-If the transaction breaks your rules:
-
-```
-Claude: "Sending 5000 USDC to 0xUnknown"
-Mandate: BLOCKED (exceeds daily limit)
-Claude: [stops, shows you why]
-```
-
-No validation = no transaction. The plugin blocks it automatically.
-
 ## What you control
-
-Set these in the Mandate dashboard:
 
 - **Per-transaction limit**: max USD per single transaction
 - **Daily/monthly limit**: spending caps over time
@@ -45,17 +47,18 @@ Set these in the Mandate dashboard:
 - **Approval workflow**: require your OK above a threshold
 - **Blocked actions**: prevent specific operations entirely
 
-## Scan your codebase
+## How enforcement works
 
-Find unprotected wallet calls:
+Every time Claude tries to send money, the plugin checks for a valid Mandate token:
 
-```bash
-npx @mandate.md/cli scan
-```
+- Valid token exists (from `mandate validate`) -> transaction proceeds
+- No token -> transaction blocked, Claude is told to validate first
+
+No network calls during enforcement. Purely local. Tokens expire after 15 minutes.
 
 ## Works with
 
-Any wallet or tool Claude can access: Bankr, MCP payment tools, direct RPC calls, custom CLIs. The plugin intercepts all of them.
+Any wallet or tool Claude can access: Bankr, MCP payment tools, direct RPC calls, custom CLIs.
 
 ## Community
 
