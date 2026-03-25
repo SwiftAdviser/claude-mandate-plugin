@@ -20,8 +20,40 @@ fi
 # Financial call patterns (what we're looking for)
 FINANCIAL_RE='wallet\.transfer\(|wallet\.sendTransaction\(|wallet\.send\(|\.sendTransaction\(|\.sendRawTransaction\(|writeContract\(|walletClient\.write|executeAction\(.*transfer|execute_swap|execute_trade'
 
-# Protection patterns (Mandate is present)
-PROTECT_RE='mandate.*validate|MandateClient|MandateWallet|@mandate|mandate_validate|/api/validate'
+# ── Project-level protection check ───────────────────────────────────────────
+# If Mandate SDK is a dependency OR this plugin is active, the project has
+# Mandate at the infrastructure level. Individual files don't need imports.
+PROJECT_PROTECTED=false
+
+# Check package.json for @mandate.md/sdk dependency
+if [ -f "$SCAN_DIR/package.json" ]; then
+  if grep -qE '"@mandate\.md/sdk"|"@mandate/sdk"|"mandate"' "$SCAN_DIR/package.json" 2>/dev/null; then
+    PROJECT_PROTECTED=true
+  fi
+fi
+
+# Check if any package.json in workspaces has it
+if [ "$PROJECT_PROTECTED" = false ]; then
+  while IFS= read -r pkg; do
+    if grep -qE '"@mandate\.md/sdk"|"@mandate/sdk"' "$pkg" 2>/dev/null; then
+      PROJECT_PROTECTED=true
+      break
+    fi
+  done < <(find "$SCAN_DIR" -maxdepth 3 -name 'package.json' ! -path '*/node_modules/*' 2>/dev/null)
+fi
+
+# Check for MANDATE.md or .mandate/ config in project root
+if [ -f "$SCAN_DIR/MANDATE.md" ] || [ -d "$SCAN_DIR/.mandate" ]; then
+  PROJECT_PROTECTED=true
+fi
+
+# This plugin being installed is itself a protection signal
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+  PROJECT_PROTECTED=true
+fi
+
+# File-level protection patterns (imports, API calls)
+FILE_PROTECT_RE='from .@mandate|require\(.*mandate|MandateClient|MandateWallet|mandate\.validate|mandate\.preflight|/api/validate'
 
 TOTAL_FILES=0
 TOTAL_FINDINGS=0
@@ -38,8 +70,11 @@ while IFS= read -r file; do
   if [ "$MATCHES" -gt 0 ]; then
     TOTAL_FINDINGS=$((TOTAL_FINDINGS + MATCHES))
 
-    # Check if file has Mandate protection
-    if grep -qE "$PROTECT_RE" "$file" 2>/dev/null; then
+    if [ "$PROJECT_PROTECTED" = true ]; then
+      # Project has Mandate installed: all calls are considered protected
+      PROTECTED_COUNT=$((PROTECTED_COUNT + MATCHES))
+    elif grep -qE "$FILE_PROTECT_RE" "$file" 2>/dev/null; then
+      # File itself imports/uses Mandate
       PROTECTED_COUNT=$((PROTECTED_COUNT + MATCHES))
     else
       UNPROTECTED_COUNT=$((UNPROTECTED_COUNT + MATCHES))
