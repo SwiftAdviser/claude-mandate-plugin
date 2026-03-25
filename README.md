@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/AIMandateProject/mandate/master/public/hackathon/cover.png" alt="Mandate. See why your agent spends. Stop it when it shouldn't." width="100%" />
+</p>
+
 # Mandate Plugin for Claude Code
 
 See why your agent spends. Stop it when it shouldn't.
