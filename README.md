@@ -4,8 +4,16 @@ Policy guardrails for AI agent wallets. Blocks financial transactions unless val
 
 ## Install
 
-```bash
+**Step 1.** Add the marketplace:
+
+```
 /plugin marketplace add SwiftAdviser/claude-mandate-plugin
+```
+
+**Step 2.** Install the plugin:
+
+```
+/plugin install mandate@mandate
 ```
 
 Or from local path:
